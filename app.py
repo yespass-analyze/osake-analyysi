@@ -6,6 +6,8 @@ from prophet import Prophet
 from prophet.plot import plot_plotly
 import plotly.graph_objects as go
 from stocknews import StockNews
+import smtplib
+from email.mime.text import MIMEText
 import datetime
 
 # --- Sivun asetukset ---
@@ -26,6 +28,22 @@ st.markdown("""
 # --- Tickerin valinta ---
 st.title("📊 Osakeanalyysi")
 ticker = st.text_input("Syötä osakkeen ticker (esim. NOKIA.HE)", "NOKIA.HE")
+
+# --- Usean osakkeen vertailu ---
+st.subheader("📊 Vertaa useita osakkeita")
+tickers_input = st.text_input("Syötä useita tickereitä pilkulla (esim. NOKIA.HE, KNEBV.HE)")
+if tickers_input:
+    tickers = [t.strip() for t in tickers_input.split(",")]
+    compare_data = {}
+    for t in tickers:
+        try:
+            data = yf.Ticker(t).history(period="1mo")["Close"]
+            compare_data[t] = data
+        except:
+            st.warning(f"Ticker {t} ei toiminut.")
+    if compare_data:
+        df_compare = pd.DataFrame(compare_data)
+        st.line_chart(df_compare)
 
 # --- Ladataan data ---
 stock = yf.Ticker(ticker)
@@ -68,10 +86,25 @@ forecast = model.predict(future)
 fig2 = plot_plotly(model, forecast)
 st.plotly_chart(fig2, use_container_width=True)
 
-# --- Ostohistoria ---
-st.subheader("💰 Ostohistoria")
-if "trades" not in st.session_state:
+# --- CSV-tuonti ostohistorialle ---
+st.subheader("📂 Tuo ostohistoria CSV-tiedostosta")
+uploaded_file = st.file_uploader("Valitse CSV-tiedosto", type=["csv"])
+if uploaded_file:
+    trades_df = pd.read_csv(uploaded_file)
+    st.session_state.trades = trades_df.to_dict(orient="records")
+
+# --- Lataa ostot muistista ---
+try:
+    trades_df = pd.read_csv("ostohistoria.csv")
+    st.session_state.trades = trades_df.to_dict(orient="records")
+except FileNotFoundError:
     st.session_state.trades = []
+
+# --- Ostohistoria ---
+st.subheader("💰 Lisää uusi ostos")
+def save_trades_to_csv():
+    trades_df = pd.DataFrame(st.session_state.trades)
+    trades_df.to_csv("ostohistoria.csv", index=False)
 
 with st.form("trade_form"):
     date = st.date_input("Ostopäivä")
@@ -82,6 +115,7 @@ with st.form("trade_form"):
 
     if submit:
         st.session_state.trades.append({"date": date, "price": price, "quantity": quantity, "note": note})
+        save_trades_to_csv()
 
 if st.session_state.trades:
     trades_df = pd.DataFrame(st.session_state.trades)
@@ -92,6 +126,24 @@ if st.session_state.trades:
     current_value = trades_df["quantity"].sum() * current_price
     st.write(f"📈 Nykyarvo: {current_value:.2f} €")
     st.write(f"📉 Voitto/Tappio: {(current_value - total_cost):.2f} €")
+
+# --- Kalenteri tuleville tapahtumille ---
+st.subheader("📅 Kalenteri: Lisää tulevia tapahtumia")
+if "events" not in st.session_state:
+    st.session_state.events = []
+
+with st.form("event_form"):
+    event_date = st.date_input("Tapahtuman päivämäärä")
+    event_desc = st.text_input("Tapahtuman kuvaus")
+    add_event = st.form_submit_button("Lisää tapahtuma")
+
+    if add_event:
+        st.session_state.events.append({"date": event_date, "desc": event_desc})
+
+if st.session_state.events:
+    events_df = pd.DataFrame(st.session_state.events)
+    st.write("📌 Tulevat tapahtumat:")
+    st.dataframe(events_df.sort_values("date"))
 
 # --- Uutiset ---
 st.subheader("🗞️ Uutiset")
@@ -106,6 +158,17 @@ try:
 except:
     st.write("Uutisia ei voitu hakea.")
 
+# --- Sähköposti-ilmoitus hintahälytyksestä ---
+def send_email_alert(current_price, target_price):
+    msg = MIMEText(f"Hinta on ylittänyt rajan! Nykyhinta: {current_price:.2f} €, rajasi: {target_price:.2f} €")
+    msg['Subject'] = 'Osakehintahälytys'
+    msg['From'] = 'omaemailisi@gmail.com'
+    msg['To'] = 'vastaanottaja@gmail.com'
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        server.login('omaemailisi@gmail.com', 'sovellussalasana')
+        server.send_message(msg)
+
 # --- Hintahälytys ---
 st.subheader("🔔 Hintahälytys")
 target_price = st.number_input("Aseta hintaraja", min_value=0.0)
@@ -113,6 +176,7 @@ if target_price > 0:
     current_price = df['Close'].iloc[-1]
     if current_price >= target_price:
         st.success(f"Hinta on ylittänyt rajan! ({current_price:.2f} €)")
+        send_email_alert(current_price, target_price)
 
 # --- Inderes-raportit ---
 st.subheader("📄 Inderes-raportit")
@@ -121,14 +185,4 @@ st.markdown(f"[Avaa Inderesin raportit]({inderes_url})")
 
 # --- Chatbot ---
 st.subheader("💬 Chatbot")
-question = st.text_input("Kysy teknisestä indikaattorista (esim. 'Mitä RSI tarkoittaa?')")
-if question:
-    if "rsi" in question.lower():
-        st.info("RSI mittaa osakkeen yliostettua tai ylimyytyä tilaa. Yli 70 = yliostettu, alle 30 = ylimyyty.")
-    elif "macd" in question.lower():
-        st.info("MACD kertoo trendin suunnasta ja vahvuudesta. Positiivinen MACD = nousutrendi.")
-    elif "bollinger" in question.lower():
-        st.info("Bollinger Bands näyttää hintavaihtelun ja mahdolliset käännekohdat.")
-    else:
-        st.info("En osaa vastata tuohon vielä, mutta kehitystä jatketaan!")
-
+question = st.text_input("Kysy teknisestä indikaattorista (esim.
