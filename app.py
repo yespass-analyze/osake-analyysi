@@ -6,8 +6,6 @@ from prophet import Prophet
 from prophet.plot import plot_plotly
 import plotly.graph_objects as go
 from stocknews import StockNews
-import smtplib
-from email.mime.text import MIMEText
 import datetime
 
 # --- Sivun asetukset ---
@@ -158,17 +156,6 @@ try:
 except:
     st.write("Uutisia ei voitu hakea.")
 
-# --- Sähköposti-ilmoitus hintahälytyksestä ---
-def send_email_alert(current_price, target_price):
-    msg = MIMEText(f"Hinta on ylittänyt rajan! Nykyhinta: {current_price:.2f} €, rajasi: {target_price:.2f} €")
-    msg['Subject'] = 'Osakehintahälytys'
-    msg['From'] = 'omaemailisi@gmail.com'
-    msg['To'] = 'vastaanottaja@gmail.com'
-
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-        server.login('omaemailisi@gmail.com', 'sovellussalasana')
-        server.send_message(msg)
-
 # --- Hintahälytys ---
 st.subheader("🔔 Hintahälytys")
 target_price = st.number_input("Aseta hintaraja", min_value=0.0)
@@ -176,7 +163,6 @@ if target_price > 0:
     current_price = df['Close'].iloc[-1]
     if current_price >= target_price:
         st.success(f"Hinta on ylittänyt rajan! ({current_price:.2f} €)")
-        send_email_alert(current_price, target_price)
 
 # --- Inderes-raportit ---
 st.subheader("📄 Inderes-raportit")
@@ -185,4 +171,14 @@ st.markdown(f"[Avaa Inderesin raportit]({inderes_url})")
 
 # --- Chatbot ---
 st.subheader("💬 Chatbot")
-question = st.text_input("Kysy teknisestä indikaattorista (esim.
+question = st.text_input("Kysy teknisestä indikaattorista (esim. 'Mitä RSI tarkoittaa?', 'Miten MACD toimii?')")
+if question:
+    q = question.lower()
+    if "rsi" in q:
+        st.info("RSI mittaa osakkeen yliostettua tai ylimyytyä tilaa. Yli 70 = yliostettu, alle 30 = ylimyyty.")
+    elif "macd" in q:
+        st.info("MACD kertoo trendin suunnasta ja vahvuudesta. Positiivinen MACD = nousutrendi.")
+    elif "bollinger" in q:
+        st.info("Bollinger Bands näyttää hintavaihtelun ja mahdolliset käännekohdat. Kun hinta osuu ylärajaan, voi olla yliostettu.")
+    else:
+        st.info("En osaa vastata tuohon vielä, mutta kehitystä jatketaan!")
