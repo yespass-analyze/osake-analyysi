@@ -12,13 +12,25 @@ st.set_page_config(page_title="Osakepisteytys", layout="wide")
 st.title("📊 Osakepisteytys")
 st.markdown("""
 Tämä työkalu arvioi osakkeet ja antaa niille pisteet 0–100 perustuen koneoppimismalliin.
+Korkeampi piste tarkoittaa suurempaa todennäköisyyttä tuottoon.
 """)
 
-# Parhaat osakkeet
-top_stocks = df.sort_values("score", ascending=False).head(5)
+# 🔝 Parhaat sijoituskohteet
 st.subheader("🔝 Parhaat sijoituskohteet")
+top_stocks = df.sort_values("score", ascending=False).head(5)
 st.table(top_stocks[["name", "score"]])
 
-# Kaikki osakkeet
+# 📋 Kaikki osakkeet taulukossa
 st.subheader("📋 Kaikki osakkeet")
-st.dataframe(df.sort_values("score", ascending=False), use_container_width=True)
+
+# Värikoodaus pisteiden mukaan
+def highlight_scores(val):
+    if val >= 80:
+        return "background-color: lightgreen"
+    elif val >= 50:
+        return "background-color: lightyellow"
+    else:
+        return "background-color: lightcoral"
+
+styled_df = df.sort_values("score", ascending=False).style.applymap(highlight_scores, subset=["score"])
+st.dataframe(styled_df, use_container_width=True)
