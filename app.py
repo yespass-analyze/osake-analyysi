@@ -34,15 +34,15 @@ skipped = []
 
 for name, ticker in tickers.items():
     try:
-        data = yf.download(ticker, period="2mo", interval="1d")
+        data = yf.download(ticker, period="2mo", interval="1d", auto_adjust=False)
         data.dropna(inplace=True)
 
-        if len(data) < 20:
+        if len(data) < 30:
             skipped.append((name, "Liian vähän dataa"))
             continue
 
-        close = data["Close"]
-        volume = data["Volume"]
+        close = data["Close"].squeeze()
+        volume = data["Volume"].squeeze()
 
         data["rsi"] = RSIIndicator(close=close).rsi()
         data["macd"] = MACD(close=close).macd_diff()
@@ -89,7 +89,7 @@ if skipped:
 for _, row in df.head(5).iterrows():
     st.markdown(f"### 📉 {row['Yritys']} ({row['Ticker']})")
     try:
-        hist = yf.download(row["Ticker"], period="2mo", interval="1d")
+        hist = yf.download(row["Ticker"], period="2mo", interval="1d", auto_adjust=False)
         fig, ax = plt.subplots()
         ax.plot(hist.index, hist["Close"], label="Kurssi", color="red")
         ax.set_title(f"{row['Yritys']} - Kurssikäyrä")
