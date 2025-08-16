@@ -11,10 +11,8 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="Short-työkalu", layout="wide")
 st.title("📉 Short-työkalu: Helsingin Pörssin riskikohteet")
 
-# Lataa koulutettu malli
 model = joblib.load("short_model.pkl")
 
-# 50 suurinta osaketta (laajennettavissa)
 tickers = {
     "Nokia": "NOKIA.HE", "Sampo": "SAMPO.HE", "Neste": "NESTE.HE", "Fortum": "FORTUM.HE",
     "Kone": "KNEBV.HE", "UPM": "UPM.HE", "Stora Enso": "STERV.HE", "Metso": "METSO.HE",
@@ -32,14 +30,19 @@ tickers = {
 }
 
 results = []
+skipped = []
 
 for name, ticker in tickers.items():
     try:
         data = yf.download(ticker, period="2mo", interval="1d")
         data.dropna(inplace=True)
 
-        close = data["Close"].squeeze()
-        volume = data["Volume"].squeeze()
+        if len(data) < 20:
+            skipped.append((name, "Liian vähän dataa"))
+            continue
+
+        close = data["Close"]
+        volume = data["Volume"]
 
         data["rsi"] = RSIIndicator(close=close).rsi()
         data["macd"] = MACD(close=close).macd_diff()
@@ -49,10 +52,14 @@ for name, ticker in tickers.items():
         data["momentum"] = close.diff()
         data["volatility"] = close.pct_change().rolling(window=5).std()
 
+        data.dropna(inplace=True)
+        if len(data) == 0:
+            skipped.append((name, "Indikaattorit eivät ehtineet laskea"))
+            continue
+
         latest = data.iloc[-1]
         X = pd.DataFrame([latest[["rsi", "macd", "bollinger", "ema", "obv", "momentum", "volatility"]]])
         prob = model.predict_proba(X)[0][1]
-
         score = round(prob * 100, 1)
 
         results.append({
@@ -67,7 +74,7 @@ for name, ticker in tickers.items():
         })
 
     except Exception as e:
-        st.warning(f"{name}: {e}")
+        skipped.append((name, str(e)))
         continue
 
 df = pd.DataFrame(results).sort_values("Pisteet", ascending=False)
@@ -75,7 +82,10 @@ df = pd.DataFrame(results).sort_values("Pisteet", ascending=False)
 st.subheader("🔝 Top short-kohteet")
 st.dataframe(df, use_container_width=True)
 
-# 📈 Kaaviot
+if skipped:
+    st.subheader("⚠️ Ohitetut osakkeet")
+    st.write(pd.DataFrame(skipped, columns=["Yritys", "Syy"]))
+
 for _, row in df.head(5).iterrows():
     st.markdown(f"### 📉 {row['Yritys']} ({row['Ticker']})")
     try:
