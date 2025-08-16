@@ -9,31 +9,24 @@ st.title("📈 Helsingin Pörssin Top 10 Sijoituskohdetta")
 # 📅 Aikavälin valinta
 period = st.selectbox("Valitse analyysin aikaväli", ["1mo", "3mo", "6mo"], index=0)
 
-# 📁 Helsingin pörssin tickerit (voit laajentaa listaa)
+# 📦 50 suurinta Helsingin pörssin osaketta
 helsinki_tickers = {
-    "Nokia": "NOKIA.HE",
-    "Neste": "NESTE.HE",
-    "Fortum": "FORTUM.HE",
-    "Kone": "KNEBV.HE",
-    "UPM-Kymmene": "UPM.HE",
-    "Sampo": "SAMPO.HE",
-    "Kesko": "KESKOA.HE",
-    "Outokumpu": "OUT1V.HE",
-    "Metso": "METSO.HE",
-    "Orion": "ORNBV.HE",
-    "Valmet": "VALMT.HE",
-    "Wärtsilä": "WRT1V.HE",
-    "Elisa": "ELISA.HE",
-    "Terveystalo": "TTALO.HE",
-    "Harvia": "HARVIA.HE",
-    "Revenio": "REG1V.HE",
-    "Qt Group": "QTCOM.HE",
-    "Marimekko": "MMO1V.HE"
+    "Nokia": "NOKIA.HE", "Sampo": "SAMPO.HE", "Neste": "NESTE.HE", "Fortum": "FORTUM.HE",
+    "Kone": "KNEBV.HE", "UPM-Kymmene": "UPM.HE", "Stora Enso": "STERV.HE", "Metso": "METSO.HE",
+    "Kesko": "KESKOA.HE", "Elisa": "ELISA.HE", "Orion": "ORNBV.HE", "Valmet": "VALMT.HE",
+    "Wärtsilä": "WRT1V.HE", "Outokumpu": "OUT1V.HE", "Metsä Board": "METSB.HE", "Kojamo": "KOJAMO.HE",
+    "Sanoma": "SANOMA.HE", "Cargotec": "CGCBV.HE", "Konecranes": "KCR.HE", "Terveystalo": "TTALO.HE",
+    "Qt Group": "QTCOM.HE", "Revenio Group": "REG1V.HE", "F-Secure": "FSECURE.HE", "Harvia": "HARVIA.HE",
+    "SRV Yhtiöt": "SRV1V.HE", "Tokmanni": "TOKMAN.HE", "Verkkokauppa.com": "VERK.HE", "Ponsse": "PON1V.HE",
+    "Etteplan": "ETTE.HE", "Talenom": "TNOM.HE", "Evli": "EVLI.HE", "Marimekko": "MMO1V.HE",
+    "Atria": "ATRAV.HE", "HKScan": "HKSAV.HE", "Kemira": "KEMIRA.HE", "Oriola": "ORION.HE",
+    "Bittium": "BITTI.HE", "Exel Composites": "EXL1V.HE", "Glaston": "GLAST.HE", "Incap": "INCAP.HE",
+    "Scanfil": "SCANFL.HE", "Aspo": "ASPO.HE", "Raute": "RAUTE.HE", "Lehto Group": "LEHTO.HE",
+    "Sitowise": "SITOWS.HE", "Dovre Group": "DOV1V.HE", "Consti": "CONSTI.HE", "Endomines": "ENDOM.HE",
+    "Componenta": "COMP.HE", "Afarak Group": "AFAGR.HE"
 }
 
-# 📊 Analyysitulokset
 results = []
-
 st.info("Analysoidaan osakkeet... Tämä voi kestää hetken.")
 
 for name, ticker in helsinki_tickers.items():
@@ -45,19 +38,16 @@ for name, ticker in helsinki_tickers.items():
         if hist.empty or "Close" not in hist.columns:
             continue
 
-        # 📈 Tuotto-odotus
         start_price = hist["Close"].iloc[0]
         end_price = hist["Close"].iloc[-1]
         return_pct = ((end_price - start_price) / start_price) * 100
 
-        # 📋 Tunnusluvut
         pe = info.get("trailingPE", None)
         dividend = info.get("dividendYield", 0)
         market_cap = info.get("marketCap", 0)
         debt_to_equity = info.get("debtToEquity", None)
         revenue_growth = info.get("revenueGrowth", 0)
 
-        # 🧠 Pisteytys (yksinkertainen malli)
         score = (
             return_pct * 0.4 +
             (1 / pe if pe and pe > 0 else 0) * 20 +
@@ -82,14 +72,12 @@ for name, ticker in helsinki_tickers.items():
         st.warning(f"Virhe osakkeessa {name}: {e}")
         continue
 
-# 📊 Top 10 osaketta
 df = pd.DataFrame(results)
 top10 = df.sort_values("Pisteet", ascending=False).head(10)
 
 st.subheader("🔟 Top 10 osaketta sijoitettavaksi")
 st.dataframe(top10)
 
-# 📋 Raportti + 📉 Kaavio
 for _, row in top10.iterrows():
     st.markdown(f"### 📌 {row['Yritys']} ({row['Ticker']})")
     st.write(f"**Tuotto-odotus ({period}):** {row['Tuotto (%)']}%")
@@ -100,7 +88,6 @@ for _, row in top10.iterrows():
     st.write(f"**Markkina-arvo:** {row['Markkina-arvo']}")
     st.write(f"**Pisteet:** {row['Pisteet']}")
 
-    # 📉 Kurssikäyrä
     try:
         stock = yf.Ticker(row["Ticker"])
         hist = stock.history(period=period)
