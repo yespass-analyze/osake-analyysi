@@ -7,8 +7,6 @@ from prophet.plot import plot_plotly
 import plotly.graph_objects as go
 from stocknews import StockNews
 import datetime
-import requests
-from bs4 import BeautifulSoup
 
 # --- Sivun asetukset ---
 st.set_page_config(page_title="Osakeanalyysi", layout="wide")
@@ -39,7 +37,8 @@ df['RSI'] = 100 - (100 / (1 + df['Close'].pct_change().rolling(14).mean()))
 df['EMA12'] = df['Close'].ewm(span=12).mean()
 df['EMA26'] = df['Close'].ewm(span=26).mean()
 df['MACD'] = df['EMA12'] - df['EMA26']
-df['Upper'], df['Lower'] = df['Close'].rolling(20).mean() + 2*df['Close'].rolling(20).std(), df['Close'].rolling(20).mean() - 2*df['Close'].rolling(20).std()
+df['Upper'] = df['Close'].rolling(20).mean() + 2 * df['Close'].rolling(20).std()
+df['Lower'] = df['Close'].rolling(20).mean() - 2 * df['Close'].rolling(20).std()
 
 # --- Graafi ---
 fig = go.Figure()
@@ -58,7 +57,10 @@ st.write(f"Toimiala: {info.get('sector', 'Ei saatavilla')}")
 
 # --- Ennusteet ---
 st.subheader("🔮 Ennuste (30 päivää)")
-forecast_df = df[['Date', 'Close']].rename(columns={'Date': 'ds', 'Close': 'y'})
+forecast_df = df[['Date', 'Close']].copy()
+forecast_df['ds'] = pd.to_datetime(forecast_df['Date']).dt.tz_localize(None)
+forecast_df['y'] = forecast_df['Close']
+forecast_df = forecast_df[['ds', 'y']]
 model = Prophet()
 model.fit(forecast_df)
 future = model.make_future_dataframe(periods=30)
@@ -107,8 +109,10 @@ except:
 # --- Hintahälytys ---
 st.subheader("🔔 Hintahälytys")
 target_price = st.number_input("Aseta hintaraja", min_value=0.0)
-if current_price >= target_price and target_price > 0:
-    st.success(f"Hinta on ylittänyt rajan! ({current_price:.2f} €)")
+if target_price > 0:
+    current_price = df['Close'].iloc[-1]
+    if current_price >= target_price:
+        st.success(f"Hinta on ylittänyt rajan! ({current_price:.2f} €)")
 
 # --- Inderes-raportit ---
 st.subheader("📄 Inderes-raportit")
@@ -120,9 +124,9 @@ st.subheader("💬 Chatbot")
 question = st.text_input("Kysy teknisestä indikaattorista (esim. 'Mitä RSI tarkoittaa?')")
 if question:
     if "rsi" in question.lower():
-        st.info("RSI (Relative Strength Index) mittaa osakkeen yliostettua tai ylimyytyä tilaa. Arvo yli 70 = yliostettu, alle 30 = ylimyyty.")
+        st.info("RSI mittaa osakkeen yliostettua tai ylimyytyä tilaa. Yli 70 = yliostettu, alle 30 = ylimyyty.")
     elif "macd" in question.lower():
-        st.info("MACD (Moving Average Convergence Divergence) kertoo trendin suunnasta ja vahvuudesta.")
+        st.info("MACD kertoo trendin suunnasta ja vahvuudesta. Positiivinen MACD = nousutrendi.")
     elif "bollinger" in question.lower():
         st.info("Bollinger Bands näyttää hintavaihtelun ja mahdolliset käännekohdat.")
     else:
