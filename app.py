@@ -1,31 +1,34 @@
+# app.py
+
 import streamlit as st
 import pandas as pd
-
 from nokia_graafi import piirra_graafi
 from nokia_tunnusluvut_graafi import piirra_tunnusluvut_graafi
 from trendline import plot_trendlines
 from ostosuositus import arvioi_ostosuositus
 
-# 1) Datan lataus ja puhdistus
+# 1) Ladataan data ja puhdistetaan Date-sarakkeen virheet
 @st.cache_data
 def lataa_data():
     df = pd.read_csv("nokia.csv")
-    # Muunna Date-pylväs datetime-tyyppiseksi, epäkelvot merkkijonot → NaT
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-    # Pudota rivit, joilla Date on NaT
-    df = df.dropna(subset=["Date"])
-    # Aseta indeksi ja järjestä nousevasti
+    df = df.dropna(subset=["Date"])                # Pudotetaan rivit, joissa Date on NaT
     df.set_index("Date", inplace=True)
     df.sort_index(inplace=True)
     return df
 
 df = lataa_data()
 
-# 2) Dynaamiset aikarajat (Timestamp-objekteina)
-min_date = df.index.min()
-max_date = df.index.max()
+# 2) Jos data on tyhjä, näytetään viesti ja pysäytetään
+if df.empty:
+    st.error("🛑 Datakehys on tyhjä. Tarkista `nokia.csv`-tiedosto.")
+    st.stop()
 
-# 3) Käyttäjän valinnat
+# 3) Määritellään min/max päivämäärinä (Python date ‑oliot)
+min_ts, max_ts = df.index.min(), df.index.max()
+min_date, max_date = min_ts.date(), max_ts.date()
+
+# 4) Käyttäjän valinta aikavälistä
 alku = st.date_input(
     "Valitse alkupäivä",
     value=min_date,
@@ -39,13 +42,16 @@ loppu = st.date_input(
     max_value=max_date
 )
 
-# 4) Suodatettu data aikavälille
-df_valittu = df.loc[alku:loppu]
+# 5) Suodatetaan data valitulle aikavälille
+df_valittu = df.loc[alku : loppu]
 
-# 5) Sovelluksen otsikko
+# -----------------------
+# Pääsisältö Streamlitissä
+# -----------------------
+
 st.title("📊 Nokian osakeanalyysi")
 
-# 6) Osakekurssi + ostos-/myyntisignaalit
+# A) Osakekurssin graafi + signaalit
 st.subheader("📈 Osakekurssin kehitys ja signaalit")
 sarake = st.selectbox(
     "Valitse sarake graafiin:",
@@ -60,21 +66,21 @@ fig1 = piirra_graafi(
 )
 st.pyplot(fig1)
 
-# 7) Tekstimuotoinen suositus
-st.subheader("💡 Suositus")
+# B) Tekstimuotoinen suositus
+st.subheader("💡 Osto-/myyntisuositus")
 suositus = arvioi_ostosuositus(df_valittu)
 st.markdown(f"**{suositus}**")
 
-# 8) Tunnusluvut
+# C) Tunnusluvut
 st.subheader("📊 Tunnusluvut")
 fig2 = piirra_tunnusluvut_graafi()
 st.pyplot(fig2)
 
-# 9) Trendiviiva
+# D) Trendiviiva
 st.subheader("📉 Trendiviiva")
 fig3 = plot_trendlines(df_valittu)
 st.pyplot(fig3)
 
-# 10) Raakadata
+# E) Raakadata
 with st.expander("📄 Näytä raakadata"):
     st.dataframe(df_valittu)
