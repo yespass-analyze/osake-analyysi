@@ -6,17 +6,22 @@ from nokia_tunnusluvut_graafi import piirra_tunnusluvut_graafi
 from trendline import plot_trendlines
 from ostosuositus import arvioi_ostosuositus
 
-# 1) Datan lataus ja väliasetukset
+# 1) Datan lataus ja Date-index-muunnos
 @st.cache_data
 def lataa_data():
-    df = pd.read_csv("nokia.csv", parse_dates=["Date"], index_col="Date")
+    df = pd.read_csv("nokia.csv")
+    # Muunnetaan Date- ja asetetaan indeksiksi
+    df["Date"] = pd.to_datetime(df["Date"])
+    df.set_index("Date", inplace=True)
     df.sort_index(inplace=True)
     return df
 
 df = lataa_data()
 
-min_date = df.index.min().date()
-max_date = df.index.max().date()
+# 2) Dynaamiset minim ja maksimi datasta
+#    käytämme pelkästään Timestamp-objektia, joka toimii date_inputissa
+min_date = df.index.min()
+max_date = df.index.max()
 
 alku = st.date_input(
     "Valitse alkupäivä",
@@ -32,14 +37,15 @@ loppu = st.date_input(
     max_value=max_date
 )
 
-# Suodatettu data aikavälille
-df_valittu = df.loc[alku:loppu]
+# 3) Suodatettu data aikavälille
+#    date_input palauttaa datetime.date, joten vertailu onnistuu suoraan
+df_valittu = df.loc[alku : loppu]
 
-# 2) Sovelluksen otsikko
+# 4) Sovelluksen otsikko
 st.title("📊 Nokian osakeanalyysi")
 
-# 3) Osakekurssin graafi ja signaalit
-st.subheader("📈 Osakekurssi ja signaalit")
+# 5) Osakekurssi + signaalit
+st.subheader("📈 Osakekurssin kehitys ja signaalit")
 sarake = st.selectbox(
     "Valitse sarake graafiin:",
     options=df.columns,
@@ -53,21 +59,21 @@ fig1 = piirra_graafi(
 )
 st.pyplot(fig1)
 
-# 4) Tekstimuotoinen ostos-/myyntisuositus
+# 6) Tekstimuotoinen ostos-/myyntisuositus
 st.subheader("💡 Suositus")
 suositus = arvioi_ostosuositus(df_valittu)
 st.markdown(f"**{suositus}**")
 
-# 5) Tunnusluvut
+# 7) Tunnusluvut
 st.subheader("📊 Tunnusluvut")
 fig2 = piirra_tunnusluvut_graafi()
 st.pyplot(fig2)
 
-# 6) Trendiviiva
+# 8) Trendiviiva
 st.subheader("📉 Trendiviiva")
 fig3 = plot_trendlines(df_valittu)
 st.pyplot(fig3)
 
-# 7) Raakadata
+# 9) Raakadata laajennettuna
 with st.expander("📄 Näytä raakadata"):
     st.dataframe(df_valittu)
