@@ -1,49 +1,43 @@
+# app.py
+
 import streamlit as st
-import pandas as pd
-from trendline import plot_trendlines
+from PIL import Image
+from nokia_analyysi import arvioi_osto_myynti
+import os
 
-st.set_page_config(page_title="📈 Osakesovellus", layout="wide")
+st.set_page_config(page_title="Nokia-analyysi", layout="wide")
+st.title("📊 Nokian osakeanalyysi")
 
-st.title("📊 Osakesovellus")
-st.markdown("Syötä osakedataa ja tarkastele trendiviivoja sekä tapahtumahistoriaa.")
+# Simuloitu data
+hinta = 3.61
+trendilinja = 3.52
+rsi = 49.78
+uutisvirta = "Q4 tulos vahva, ohjeistus neutraali"
 
-# --- Datan lataus ---
-uploaded_file = st.file_uploader("📂 Lataa CSV-tiedosto (sisältää 'Date' ja 'Close')", type=["csv"])
+# Suositus
+tulos = arvioi_osto_myynti(hinta, trendilinja, rsi, uutisvirta)
 
-if uploaded_file:
-    df = pd.read_csv(uploaded_file, parse_dates=["Date"])
-    df = df.sort_values("Date")
-    st.success("Data ladattu onnistuneesti!")
-    st.dataframe(df)
+st.subheader("📌 Osto-/myyntisuositus")
+st.markdown(f"""
+- **Suositus**: {tulos['suositus']}
+- **Trendisuunta**: {tulos['suunta']}
+- **RSI-tulkinta**: {tulos['rsi_tulkinta']}
+- **Uutisvirta**: {tulos['uutis_tulkinta']}
+""")
 
-    # --- Trendiviivat ---
-    plot_trendlines(df)
+# Graafit
+col1, col2 = st.columns(2)
 
-    # --- Tapahtumien syöttö ---
-    st.subheader("📥 Syötä osto- ja myyntitapahtumia")
+with col1:
+    st.subheader("📈 Hinta vs Trendilinja")
+    if os.path.exists("nokia_stock_trend_signals_2025.png"):
+        st.image("nokia_stock_trend_signals_2025.png")
+    else:
+        st.warning("Trendigraafi puuttuu. Aja nokia_graafi.py ensin.")
 
-    transaction_type = st.selectbox("Tapahtuman tyyppi", ["Osto", "Myynti"])
-    date = st.date_input("Päivämäärä")
-    price = st.number_input("Hinta", min_value=0.0, format="%.2f")
-    quantity = st.number_input("Määrä", min_value=1)
-
-    if st.button("Lisää tapahtuma"):
-        new_transaction = {
-            "Tyyppi": transaction_type,
-            "Päivämäärä": date,
-            "Hinta": price,
-            "Määrä": quantity
-        }
-
-        if "transactions" not in st.session_state:
-            st.session_state.transactions = []
-
-        st.session_state.transactions.append(new_transaction)
-        st.success("✅ Tapahtuma lisätty!")
-
-    # --- Tapahtumien näyttö ---
-    if "transactions" in st.session_state and st.session_state.transactions:
-        st.subheader("📊 Tapahtumahistoria")
-        st.dataframe(pd.DataFrame(st.session_state.transactions))
-else:
-    st.info("Lataa CSV-tiedosto aloittaaksesi.")
+with col2:
+    st.subheader("📊 Tunnusluvut vs Sektori")
+    if os.path.exists("nokia_tunnusluvut_vs_sektori.png"):
+        st.image("nokia_tunnusluvut_vs_sektori.png")
+    else:
+        st.warning("Tunnuslukugraafi puuttuu. Aja nokia_tunnusluvut_graafi.py ensin.")
