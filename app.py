@@ -4,10 +4,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
 from nokia_analyysi import arvioi_osto_myynti
 from trendline import plot_trendlines
 from nokia_tunnusluvut_graafi import piirra_tunnusluvut_graafi
+from nokia_graafi import piirra_graafi
 
 st.set_page_config(page_title="📊 Nokia-analyysityökalu", layout="wide")
 st.title("📈 Nokian osakeanalyysi")
@@ -35,7 +35,8 @@ else:
     st.dataframe(df[["Date", "Close"]])
 
     # --- Trendiviivat + graafi ---
-    plot_trendlines(df)
+    fig1 = plot_trendlines(df)
+    st.pyplot(fig1)
 
     # --- RSI-laskenta ---
     delta = df["Close"].diff()
@@ -65,17 +66,16 @@ else:
     - **Uutisvirta**: {tulos['uutis_tulkinta']}
     """)
 
-    # --- Tunnuslukugraafi ---
+    # --- Tunnusluvut vs sektori ---
     st.subheader("📊 Tunnusluvut vs Sektori")
-    piirra_tunnusluvut_graafi()
-    st.image("nokia_tunnusluvut_vs_sektori.png")
+    fig2 = piirra_tunnusluvut_graafi()
+    st.pyplot(fig2)
 
-    # --- Osto-/myyntipisteet graafi ---
+    # --- Osto-/myyntipisteet ---
     st.subheader("📈 Osto- ja myyntipisteet")
-    from nokia_graafi import piirra_graafi
     hinnat = df["Close"].tolist()
     trendilinja = trend(x).tolist()
     ostopisteet = {i: hinnat[i] for i in range(1, len(hinnat)) if hinnat[i] > trendilinja[i] and hinnat[i-1] <= trendilinja[i-1]}
     myyntipisteet = {i: hinnat[i] for i in range(1, len(hinnat)) if hinnat[i] < trendilinja[i] and hinnat[i-1] >= trendilinja[i-1]}
-    piirra_graafi(hinnat, trendilinja, ostopisteet, myyntipisteet)
-    st.image("nokia_stock_trend_signals_2025.png")
+    fig3 = piirra_graafi(hinnat, trendilinja, ostopisteet, myyntipisteet)
+    st.pyplot(fig3)
