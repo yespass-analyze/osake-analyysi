@@ -1,29 +1,26 @@
 import streamlit as st
-from data_fetcher import get_stock_data
-from trendline import plot_trendlines
-from indicators import show_indicators
-from valuation import show_valuation
-from signals import show_signals
-from telegram_alerts import check_alerts
-from ml_model import predict_price
-
-st.set_page_config(page_title="Nokia-analyysityökalu", layout="wide")
-st.title("📊 Nokia (HEL) – Analyysityökalu")
-
-period = st.selectbox("Valitse aikaväli", ["1d", "1mo", "3mo", "6mo", "12mo", "36mo"])
-df = get_stock_data(period)
-plot_trendlines(df)
-show_indicators(df)
-show_valuation()
-show_signals(df)
-predict_price(df)
-check_alerts(df)
-
-import streamlit as st
 import pandas as pd
+from trendline import plot_trendlines
 
-def transaction_input():
-    st.subheader("📥 Syötä osto- ja myyntitapahtumat")
+st.set_page_config(page_title="📈 Osakesovellus", layout="wide")
+
+st.title("📊 Osakesovellus")
+st.markdown("Syötä osakedataa ja tarkastele trendiviivoja sekä tapahtumahistoriaa.")
+
+# --- Datan lataus ---
+uploaded_file = st.file_uploader("📂 Lataa CSV-tiedosto (sisältää 'Date' ja 'Close')", type=["csv"])
+
+if uploaded_file:
+    df = pd.read_csv(uploaded_file, parse_dates=["Date"])
+    df = df.sort_values("Date")
+    st.success("Data ladattu onnistuneesti!")
+    st.dataframe(df)
+
+    # --- Trendiviivat ---
+    plot_trendlines(df)
+
+    # --- Tapahtumien syöttö ---
+    st.subheader("📥 Syötä osto- ja myyntitapahtumia")
 
     transaction_type = st.selectbox("Tapahtuman tyyppi", ["Osto", "Myynti"])
     date = st.date_input("Päivämäärä")
@@ -42,8 +39,11 @@ def transaction_input():
             st.session_state.transactions = []
 
         st.session_state.transactions.append(new_transaction)
-        st.success("Tapahtuma lisätty!")
+        st.success("✅ Tapahtuma lisätty!")
 
-    if "transactions" in st.session_state:
+    # --- Tapahtumien näyttö ---
+    if "transactions" in st.session_state and st.session_state.transactions:
         st.subheader("📊 Tapahtumahistoria")
         st.dataframe(pd.DataFrame(st.session_state.transactions))
+else:
+    st.info("Lataa CSV-tiedosto aloittaaksesi.")
