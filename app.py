@@ -6,30 +6,32 @@ from nokia_tunnusluvut_graafi import piirra_tunnusluvut_graafi
 from trendline import plot_trendlines
 from ostosuositus import arvioi_ostosuositus
 
-# 1) Datan lataus ja Date-index-muunnos
+# 1) Datan lataus ja puhdistus
 @st.cache_data
 def lataa_data():
     df = pd.read_csv("nokia.csv")
-    # Muunnetaan Date- ja asetetaan indeksiksi
-    df["Date"] = pd.to_datetime(df["Date"])
+    # Muunna Date-pylväs datetime-tyyppiseksi, epäkelvot merkkijonot → NaT
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    # Pudota rivit, joilla Date on NaT
+    df = df.dropna(subset=["Date"])
+    # Aseta indeksi ja järjestä nousevasti
     df.set_index("Date", inplace=True)
     df.sort_index(inplace=True)
     return df
 
 df = lataa_data()
 
-# 2) Dynaamiset minim ja maksimi datasta
-#    käytämme pelkästään Timestamp-objektia, joka toimii date_inputissa
+# 2) Dynaamiset aikarajat (Timestamp-objekteina)
 min_date = df.index.min()
 max_date = df.index.max()
 
+# 3) Käyttäjän valinnat
 alku = st.date_input(
     "Valitse alkupäivä",
     value=min_date,
     min_value=min_date,
     max_value=max_date
 )
-
 loppu = st.date_input(
     "Valitse loppupäivä",
     value=max_date,
@@ -37,14 +39,13 @@ loppu = st.date_input(
     max_value=max_date
 )
 
-# 3) Suodatettu data aikavälille
-#    date_input palauttaa datetime.date, joten vertailu onnistuu suoraan
-df_valittu = df.loc[alku : loppu]
+# 4) Suodatettu data aikavälille
+df_valittu = df.loc[alku:loppu]
 
-# 4) Sovelluksen otsikko
+# 5) Sovelluksen otsikko
 st.title("📊 Nokian osakeanalyysi")
 
-# 5) Osakekurssi + signaalit
+# 6) Osakekurssi + ostos-/myyntisignaalit
 st.subheader("📈 Osakekurssin kehitys ja signaalit")
 sarake = st.selectbox(
     "Valitse sarake graafiin:",
@@ -59,21 +60,21 @@ fig1 = piirra_graafi(
 )
 st.pyplot(fig1)
 
-# 6) Tekstimuotoinen ostos-/myyntisuositus
+# 7) Tekstimuotoinen suositus
 st.subheader("💡 Suositus")
 suositus = arvioi_ostosuositus(df_valittu)
 st.markdown(f"**{suositus}**")
 
-# 7) Tunnusluvut
+# 8) Tunnusluvut
 st.subheader("📊 Tunnusluvut")
 fig2 = piirra_tunnusluvut_graafi()
 st.pyplot(fig2)
 
-# 8) Trendiviiva
+# 9) Trendiviiva
 st.subheader("📉 Trendiviiva")
 fig3 = plot_trendlines(df_valittu)
 st.pyplot(fig3)
 
-# 9) Raakadata laajennettuna
+# 10) Raakadata
 with st.expander("📄 Näytä raakadata"):
     st.dataframe(df_valittu)
