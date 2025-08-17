@@ -1,19 +1,36 @@
 import streamlit as st
-import pandas as pd
+from data_fetcher import get_stock_data
+from trendline import plot_trendlines
+from indicators import show_indicators
+from valuation import show_valuation
+from signals import show_signals
+from telegram_alerts import check_alerts
+from ml_model import predict_price
 
-st.title("📊 Helsingin pörssin osake-ennusteet")
+st.set_page_config(page_title="Nokia-analyysityökalu", layout="wide")
 
-try:
-    df = pd.read_csv("ennusteet.csv")
-except Exception as e:
-    st.error(f"Virhe tiedoston lukemisessa: {e}")
-    st.stop()
+st.title("📊 Nokia (HEL) – Analyysityökalu")
 
-# ✅ Valitse yhtiön nimellä
-valittu_nimi = st.selectbox("Valitse yhtiö", df["Nimi"].unique())
-valinta = df[df["Nimi"] == valittu_nimi].iloc[0]
+# Aikavälin valinta
+period = st.selectbox("Valitse aikaväli", ["1d", "1m", "3m", "6m", "12m", "36m"])
 
-st.subheader(f"{valinta['Nimi']} ({valinta['Ticker']})")
-st.metric("Nyt", f"{valinta['Nyt']} €")
-st.metric("Viikon päästä", f"{valinta['Viikko']} €")
-st.metric("Kuukauden päästä", f"{valinta['Kuukausi']} €")
+# Hae data
+df = get_stock_data(period)
+
+# Näytä trendilinjat
+plot_trendlines(df)
+
+# Näytä tekniset indikaattorit
+show_indicators(df)
+
+# Näytä tunnusluvut
+show_valuation()
+
+# Näytä osto/myyntivinkit
+show_signals(df)
+
+# Ennuste
+predict_price(df)
+
+# Telegram-hälytykset
+check_alerts(df)
